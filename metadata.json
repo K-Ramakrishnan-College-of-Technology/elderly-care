@@ -1,0 +1,6 @@
+{
+  "name": "KinCare",
+  "description": "Collaborative elderly care, medication schedule management, passcode-protected care circles, and proactive email reminder platform putting seniors at the center of healthcare decisions.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

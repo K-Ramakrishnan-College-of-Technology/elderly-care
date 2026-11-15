@@ -1,0 +1,352 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Public profile for an authenticated KinCare member.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "photoURL": { "type": "string", "maxLength": 500 },
+        "rolePreference": { "type": "string", "enum": ["elderly", "caretaker", "family"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "displayName", "photoURL", "rolePreference", "createdAt", "updatedAt"]
+    },
+    "UserPrivateInfo": {
+      "title": "UserPrivateInfo",
+      "description": "Isolated PII record for a user's contact email and phone.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "email": { "type": "string", "maxLength": 120 },
+        "phone": { "type": "string", "maxLength": 40 },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "phone", "updatedAt"]
+    },
+    "UserMembership": {
+      "title": "UserMembership",
+      "description": "Index entry linking a user to a CareProfile they belong to.",
+      "type": "object",
+      "properties": {
+        "profileId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "seniorName": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "careCode": { "type": "string", "minLength": 4, "maxLength": 16, "pattern": "^[A-Z0-9\\-]+$" },
+        "role": { "type": "string", "enum": ["elderly", "caretaker", "family"] },
+        "joinedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["profileId", "seniorName", "careCode", "role", "joinedAt"]
+    },
+    "CareProfile": {
+      "title": "CareProfile",
+      "description": "Central healthcare profile for an elderly individual.",
+      "type": "object",
+      "properties": {
+        "profileId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "seniorName": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "age": { "type": "integer" },
+        "careCode": { "type": "string", "minLength": 4, "maxLength": 16, "pattern": "^[A-Z0-9\\-]+$" },
+        "passcodeVerifier": { "type": "string", "minLength": 64, "maxLength": 128 },
+        "passcodeSalt": { "type": "string", "minLength": 8, "maxLength": 64 },
+        "requireSeniorApproval": { "type": "boolean" },
+        "bloodType": { "type": "string", "maxLength": 16 },
+        "allergies": { "type": "string", "maxLength": 400 },
+        "conditions": { "type": "string", "maxLength": 400 },
+        "doctorName": { "type": "string", "maxLength": 80 },
+        "doctorEmail": { "type": "string", "maxLength": 120 },
+        "emergencyContactName": { "type": "string", "maxLength": 80 },
+        "emergencyContactPhone": { "type": "string", "maxLength": 40 },
+        "preferredView": { "type": "string", "enum": ["senior", "caregiver"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "profileId",
+        "ownerId",
+        "seniorName",
+        "age",
+        "careCode",
+        "passcodeVerifier",
+        "passcodeSalt",
+        "requireSeniorApproval",
+        "bloodType",
+        "allergies",
+        "conditions",
+        "doctorName",
+        "doctorEmail",
+        "emergencyContactName",
+        "emergencyContactPhone",
+        "preferredView",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "CarePass": {
+      "title": "CarePass",
+      "description": "Hash-keyed passcode token granting verified Care Circle join access.",
+      "type": "object",
+      "properties": {
+        "profileId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "seniorName": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "careCode": { "type": "string", "minLength": 4, "maxLength": 16, "pattern": "^[A-Z0-9\\-]+$" },
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["profileId", "seniorName", "careCode", "ownerId", "createdAt"]
+    },
+    "CareMember": {
+      "title": "CareMember",
+      "description": "Authorized member of a Care Circle with role, consent status, and alert preferences.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "profileId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "relationship": { "type": "string", "minLength": 1, "maxLength": 60 },
+        "role": { "type": "string", "enum": ["elderly", "caretaker", "family"] },
+        "canEditSchedule": { "type": "boolean" },
+        "alertEmail": { "type": "string", "maxLength": 120 },
+        "notifyMissedDose": { "type": "boolean" },
+        "notifyUpcomingDose": { "type": "boolean" },
+        "notifyAppointments": { "type": "boolean" },
+        "status": { "type": "string", "enum": ["active", "paused"] },
+        "passToken": { "type": "string", "maxLength": 128 },
+        "joinedAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "uid",
+        "profileId",
+        "displayName",
+        "relationship",
+        "role",
+        "canEditSchedule",
+        "alertEmail",
+        "notifyMissedDose",
+        "notifyUpcomingDose",
+        "notifyAppointments",
+        "status",
+        "passToken",
+        "joinedAt",
+        "updatedAt"
+      ]
+    },
+    "Medication": {
+      "title": "Medication",
+      "description": "Scheduled medication with dosage, timing, refill inventory, and senior approval state.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "profileId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "name": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "dosage": { "type": "string", "minLength": 1, "maxLength": 60 },
+        "frequency": { "type": "string", "minLength": 1, "maxLength": 60 },
+        "timeSlot": { "type": "string", "enum": ["morning", "afternoon", "evening", "bedtime"] },
+        "scheduledTime": { "type": "string", "pattern": "^[0-2][0-9]:[0-5][0-9]$" },
+        "instructions": { "type": "string", "maxLength": 300 },
+        "purpose": { "type": "string", "maxLength": 200 },
+        "prescriber": { "type": "string", "maxLength": 80 },
+        "pillColor": { "type": "string", "maxLength": 30 },
+        "pillsRemaining": { "type": "integer" },
+        "refillThreshold": { "type": "integer" },
+        "approvalStatus": { "type": "string", "enum": ["approved", "pending_senior", "paused"] },
+        "proposedByUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "proposedByName": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "aiSummary": { "type": "string", "maxLength": 600 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "profileId",
+        "name",
+        "dosage",
+        "frequency",
+        "timeSlot",
+        "scheduledTime",
+        "instructions",
+        "purpose",
+        "prescriber",
+        "pillColor",
+        "pillsRemaining",
+        "refillThreshold",
+        "approvalStatus",
+        "proposedByUid",
+        "proposedByName",
+        "aiSummary",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "DoseLog": {
+      "title": "DoseLog",
+      "description": "Adherence record for a medication dose on a specific date.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "profileId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "medicationId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "medicationName": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "dosage": { "type": "string", "minLength": 1, "maxLength": 60 },
+        "dateKey": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+        "scheduledTime": { "type": "string", "pattern": "^[0-2][0-9]:[0-5][0-9]$" },
+        "status": { "type": "string", "enum": ["taken", "missed", "skipped"] },
+        "note": { "type": "string", "maxLength": 240 },
+        "loggedByUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "loggedByName": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "loggedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "profileId",
+        "medicationId",
+        "medicationName",
+        "dosage",
+        "dateKey",
+        "scheduledTime",
+        "status",
+        "note",
+        "loggedByUid",
+        "loggedByName",
+        "loggedAt"
+      ]
+    },
+    "Appointment": {
+      "title": "Appointment",
+      "description": "Scheduled medical appointment and visit preparation brief.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "profileId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "title": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "doctorName": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "specialty": { "type": "string", "maxLength": 80 },
+        "location": { "type": "string", "maxLength": 160 },
+        "appointmentDate": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+        "appointmentTime": { "type": "string", "pattern": "^[0-2][0-9]:[0-5][0-9]$" },
+        "notes": { "type": "string", "maxLength": 500 },
+        "status": { "type": "string", "enum": ["scheduled", "completed", "cancelled"] },
+        "prepBrief": { "type": "string", "maxLength": 2000 },
+        "reminder24hSent": { "type": "boolean" },
+        "reminder2hSent": { "type": "boolean" },
+        "createdByUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "profileId",
+        "title",
+        "doctorName",
+        "specialty",
+        "location",
+        "appointmentDate",
+        "appointmentTime",
+        "notes",
+        "status",
+        "prepBrief",
+        "reminder24hSent",
+        "reminder2hSent",
+        "createdByUid",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "CheckIn": {
+      "title": "CheckIn",
+      "description": "Elderly daily comfort, mood, and side-effect check-in entry.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "profileId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "mood": { "type": "string", "enum": ["good", "tired", "unwell", "pain"] },
+        "energyLevel": { "type": "integer" },
+        "note": { "type": "string", "maxLength": 400 },
+        "authorUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "authorName": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "profileId", "mood", "energyLevel", "note", "authorUid", "authorName", "createdAt"]
+    },
+    "EmailLog": {
+      "title": "EmailLog",
+      "description": "Audit log of proactive email reminders sent to Care Circle members.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "profileId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "alertKey": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "type": { "type": "string", "enum": ["missed_dose", "upcoming_dose", "appointment_reminder", "refill_warning", "manual_test"] },
+        "recipients": { "type": "array" },
+        "subject": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "bodyPreview": { "type": "string", "minLength": 1, "maxLength": 1200 },
+        "deliveryMode": { "type": "string", "enum": ["smtp_sent", "outbox_queued"] },
+        "status": { "type": "string", "enum": ["sent", "logged", "failed"] },
+        "triggeredByUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "sentAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "profileId",
+        "alertKey",
+        "type",
+        "recipients",
+        "subject",
+        "bodyPreview",
+        "deliveryMode",
+        "status",
+        "triggeredByUid",
+        "sentAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Public user record for Care Circle display."
+    },
+    "/users/{userId}/private/{infoDoc}": {
+      "schema": { "$ref": "#/entities/UserPrivateInfo" },
+      "description": "Owner-only PII record storing user email and phone."
+    },
+    "/users/{userId}/memberships/{profileId}": {
+      "schema": { "$ref": "#/entities/UserMembership" },
+      "description": "User-scoped index of joined CareProfiles."
+    },
+    "/careProfiles/{profileId}": {
+      "schema": { "$ref": "#/entities/CareProfile" },
+      "description": "Elderly individual healthcare profile."
+    },
+    "/carePasses/{passToken}": {
+      "schema": { "$ref": "#/entities/CarePass" },
+      "description": "Hash-keyed passcode token for zero-enumeration Care Circle onboarding."
+    },
+    "/careProfiles/{profileId}/members/{memberId}": {
+      "schema": { "$ref": "#/entities/CareMember" },
+      "description": "Care Circle members and permissions for a CareProfile."
+    },
+    "/careProfiles/{profileId}/medications/{medId}": {
+      "schema": { "$ref": "#/entities/Medication" },
+      "description": "Scheduled medications and senior approval queue."
+    },
+    "/careProfiles/{profileId}/doseLogs/{logId}": {
+      "schema": { "$ref": "#/entities/DoseLog" },
+      "description": "Daily medication dose adherence logs."
+    },
+    "/careProfiles/{profileId}/appointments/{apptId}": {
+      "schema": { "$ref": "#/entities/Appointment" },
+      "description": "Doctor appointments and generated visit prep briefs."
+    },
+    "/careProfiles/{profileId}/checkIns/{checkInId}": {
+      "schema": { "$ref": "#/entities/CheckIn" },
+      "description": "Elderly daily wellness and symptom check-in entries."
+    },
+    "/careProfiles/{profileId}/emailLogs/{logId}": {
+      "schema": { "$ref": "#/entities/EmailLog" },
+      "description": "Proactive email reminder dispatch audit log."
+    }
+  }
+}
