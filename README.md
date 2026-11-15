@@ -97,7 +97,26 @@ firebase deploy --only firestore:rules
 
 ---
 
-## 5. Cloud Run Deployment
+## 5. Automated Testing & Verification
+
+Run the automated test suite (unit tests for Care Passcode cryptography, payload sanitization, proactive reminder engine, Express API security/auth guards, and React component accessibility) and Firestore security rules linter:
+
+```bash
+npm test
+npm run test:rules
+npm run lint
+```
+
+### End-to-End Functional Walkthrough Checklist
+1. **Authentication & Onboarding**: Sign in with Google (`Sign in with Google`), create a care profile with a 6-digit Care Passcode, and confirm a unique `KIN-XXXX` Care Code is generated.
+2. **Passcode-Gated Collaboration**: Sign in as a second member, select **Join with Passcode**, enter the `KIN-XXXX` code and 6-digit passcode, and verify shared access without exposing unjoined profiles.
+3. **Senior Autonomy & Daily Routine**: Open **Senior Care View**, toggle **Text Size: Large/Standard**, click **Read My Routine Aloud**, log a medication via **I Took This**, and verify supply decrements automatically.
+4. **Approval Queue**: With **Require Elderly Approval** enabled, propose a new medication from Care Circle View and confirm it waits in Senior Mode's **Changes Waiting for Your Approval** queue until approved.
+5. **Proactive Email Alerts & AI Tools**: Trigger **Scan & Send Due Alerts**, verify alerts log cleanly to **Dispatched Email History** (`.eml` exportable), and run **AI Interaction Check** / **AI Visit Prep Brief**.
+
+---
+
+## 6. Cloud Run Deployment
 
 Build the production client bundle and deploy to Google Cloud Run with Secret Manager bindings:
 
@@ -114,7 +133,7 @@ gcloud run deploy kincare-platform \
 
 ---
 
-## 6. Campaign Verification Labeling
+## 7. Campaign Verification Labeling
 
 Apply the required campaign resource label to your deployed Cloud Run service for automated verification:
 

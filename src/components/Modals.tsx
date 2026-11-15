@@ -48,10 +48,15 @@ export function PasscodeUnlockModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="unlock-dialog-title"
+      className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4"
+    >
       <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-md p-6 shadow-lg">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="font-display text-lg font-bold text-slate-900 flex items-center gap-2">
+          <h2 id="unlock-dialog-title" className="font-display text-lg font-bold text-slate-900 flex items-center gap-2">
             <KeyRound className="w-5 h-5 text-teal-700" />
             Unlock Care Circle View
           </h2>
@@ -78,6 +83,7 @@ export function PasscodeUnlockModal({
         <form onSubmit={handleSubmit} className="space-y-4">
           <input
             type="password"
+            aria-label="6-digit Care Passcode"
             inputMode="numeric"
             maxLength={6}
             autoFocus

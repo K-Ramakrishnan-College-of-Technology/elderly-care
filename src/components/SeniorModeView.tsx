@@ -284,6 +284,7 @@ export function SeniorModeView({
         <div className="flex flex-wrap items-center gap-3">
           <button
             type="button"
+            aria-pressed={speaking}
             onClick={handleReadAloud}
             className="inline-flex items-center gap-2 px-4 py-3 min-h-[48px] text-sm font-semibold text-white bg-teal-700 rounded-xl hover:bg-teal-800 transition-colors cursor-pointer whitespace-nowrap"
           >
@@ -293,6 +294,7 @@ export function SeniorModeView({
 
           <button
             type="button"
+            aria-pressed={largePrint}
             onClick={() => setLargePrint((v) => !v)}
             className="px-4 py-3 min-h-[48px] text-sm font-semibold text-slate-700 bg-slate-100 rounded-xl hover:bg-slate-200 transition-colors cursor-pointer whitespace-nowrap"
           >
@@ -501,11 +503,12 @@ export function SeniorModeView({
           </p>
 
           <form onSubmit={handleCheckInSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
+            <div role="group" aria-label="How are you feeling" className="grid grid-cols-2 gap-3">
               {MOOD_OPTIONS.map((opt) => (
                 <button
                   key={opt.id}
                   type="button"
+                  aria-pressed={mood === opt.id}
                   onClick={() => setMood(opt.id)}
                   className={`px-4 py-3 min-h-[48px] text-sm font-semibold rounded-xl border text-left transition-colors cursor-pointer ${
                     mood === opt.id
@@ -520,10 +523,11 @@ export function SeniorModeView({
 
             <div>
               <div className="flex items-center justify-between text-sm font-medium text-slate-700 mb-1.5">
-                <span>Energy Level</span>
+                <label htmlFor="energy-level-slider">Energy Level</label>
                 <span className="font-mono tabular-nums">{energyLevel} / 5</span>
               </div>
               <input
+                id="energy-level-slider"
                 type="range"
                 min={1}
                 max={5}
@@ -535,7 +539,7 @@ export function SeniorModeView({
 
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="text-sm font-medium text-slate-700">
+                <label htmlFor="checkin-note-input" className="text-sm font-medium text-slate-700">
                   Optional Note or Side Effects
                 </label>
                 <button
@@ -548,6 +552,7 @@ export function SeniorModeView({
                 </button>
               </div>
               <textarea
+                id="checkin-note-input"
                 rows={3}
                 maxLength={400}
                 value={checkInNote}
@@ -558,7 +563,9 @@ export function SeniorModeView({
             </div>
 
             {checkInSavedMsg && (
-              <p className="text-sm font-medium text-emerald-700">{checkInSavedMsg}</p>
+              <p role="status" aria-live="polite" className="text-sm font-medium text-emerald-700">
+                {checkInSavedMsg}
+              </p>
             )}
 
             <button

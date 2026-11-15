@@ -110,11 +110,16 @@ export function OnboardingModal({ user, canClose, onClose, onSuccess }: Onboardi
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="onboarding-dialog-title"
+      className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto"
+    >
       <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-2xl shadow-lg my-8">
         <div className="px-6 py-5 border-b border-slate-200 flex items-center justify-between gap-4">
           <div>
-            <h2 className="font-display text-xl font-bold text-slate-900">
+            <h2 id="onboarding-dialog-title" className="font-display text-xl font-bold text-slate-900">
               Set Up or Join a Care Profile
             </h2>
             <p className="text-sm text-slate-600 mt-0.5">

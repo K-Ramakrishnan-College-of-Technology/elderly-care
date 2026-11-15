@@ -4,6 +4,7 @@ import {
   deleteDoc,
   doc,
   getDoc,
+  limit,
   onSnapshot,
   orderBy,
   query,
@@ -13,6 +14,7 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import type { Unsubscribe } from 'firebase/firestore';
+import { getTodayDateKey, normalizeTimeHHMM } from './careUtils';
 import {
   computePasscodeVerifier,
   computePassToken,
@@ -23,6 +25,8 @@ import {
   handleFirestoreError,
   sanitizePayload,
 } from './firebase';
+
+export { getTodayDateKey, normalizeTimeHHMM };
 import { OperationType } from '../types/kincare';
 import type {
   Appointment,
@@ -42,20 +46,7 @@ import type {
   UserMembership,
 } from '../types/kincare';
 
-export function getTodayDateKey(): string {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, '0');
-  const d = String(now.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-}
 
-export function normalizeTimeHHMM(raw: string, fallback = '08:00'): string {
-  const trimmed = raw.trim();
-  const match = trimmed.match(/^([01]?\d|2[0-3]):([0-5]\d)$/);
-  if (!match) return fallback;
-  return `${match[1].padStart(2, '0')}:${match[2]}`;
-}
 
 export async function ensureUserRecord(
   user: User,
@@ -126,7 +117,7 @@ export function subscribeUserMemberships(
   onError: (err: Error) => void
 ): Unsubscribe {
   const path = `users/${uid}/memberships`;
-  const q = query(collection(db, 'users', uid, 'memberships'), orderBy('joinedAt', 'desc'));
+  const q = query(collection(db, 'users', uid, 'memberships'), orderBy('joinedAt', 'desc'), limit(30));
   return onSnapshot(
     q,
     (snapshot) => {
@@ -508,7 +499,7 @@ export function subscribeCareWorkspace(
 
   unsubs.push(
     onSnapshot(
-      query(collection(db, 'careProfiles', profileId, 'members'), orderBy('joinedAt', 'asc')),
+      query(collection(db, 'careProfiles', profileId, 'members'), orderBy('joinedAt', 'asc'), limit(50)),
       (snap) => callbacks.onMembers(snap.docs.map((d) => d.data() as CareMember)),
       (err) => {
         try {
@@ -522,7 +513,7 @@ export function subscribeCareWorkspace(
 
   unsubs.push(
     onSnapshot(
-      query(collection(db, 'careProfiles', profileId, 'medications'), orderBy('scheduledTime', 'asc')),
+      query(collection(db, 'careProfiles', profileId, 'medications'), orderBy('scheduledTime', 'asc'), limit(100)),
       (snap) => callbacks.onMedications(snap.docs.map((d) => d.data() as Medication)),
       (err) => {
         try {
@@ -536,7 +527,7 @@ export function subscribeCareWorkspace(
 
   unsubs.push(
     onSnapshot(
-      query(collection(db, 'careProfiles', profileId, 'doseLogs'), orderBy('loggedAt', 'desc')),
+      query(collection(db, 'careProfiles', profileId, 'doseLogs'), orderBy('loggedAt', 'desc'), limit(120)),
       (snap) => callbacks.onDoseLogs(snap.docs.map((d) => d.data() as DoseLog)),
       (err) => {
         try {
@@ -550,7 +541,7 @@ export function subscribeCareWorkspace(
 
   unsubs.push(
     onSnapshot(
-      query(collection(db, 'careProfiles', profileId, 'appointments'), orderBy('appointmentDate', 'asc')),
+      query(collection(db, 'careProfiles', profileId, 'appointments'), orderBy('appointmentDate', 'asc'), limit(80)),
       (snap) => callbacks.onAppointments(snap.docs.map((d) => d.data() as Appointment)),
       (err) => {
         try {
@@ -564,7 +555,7 @@ export function subscribeCareWorkspace(
 
   unsubs.push(
     onSnapshot(
-      query(collection(db, 'careProfiles', profileId, 'checkIns'), orderBy('createdAt', 'desc')),
+      query(collection(db, 'careProfiles', profileId, 'checkIns'), orderBy('createdAt', 'desc'), limit(50)),
       (snap) => callbacks.onCheckIns(snap.docs.map((d) => d.data() as CheckIn)),
       (err) => {
         try {
@@ -578,7 +569,7 @@ export function subscribeCareWorkspace(
 
   unsubs.push(
     onSnapshot(
-      query(collection(db, 'careProfiles', profileId, 'emailLogs'), orderBy('sentAt', 'desc')),
+      query(collection(db, 'careProfiles', profileId, 'emailLogs'), orderBy('sentAt', 'desc'), limit(60)),
       (snap) => callbacks.onEmailLogs(snap.docs.map((d) => d.data() as EmailLog)),
       (err) => {
         try {

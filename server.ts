@@ -3,6 +3,7 @@ import express from 'express';
 import type { Request, Response, NextFunction } from 'express';
 import path from 'node:path';
 import fs from 'node:fs';
+import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { GoogleGenAI, Type } from '@google/genai';
 import type { GenerateContentParameters, GenerateContentResponse } from '@google/genai';
@@ -22,21 +23,27 @@ try {
   firebaseWebApiKey = '';
 }
 
-const app = express();
+export const app = express();
 const PORT = Number(process.env.PORT || 3000);
 
 // Top-Level Request Deserialization (must precede all route definitions)
 app.use(express.json({ limit: '6mb' }));
 
 // --- Gemini Client & Resilient Fallback Ladder ---
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY,
-  httpOptions: {
-    headers: {
-      'User-Agent': 'aistudio-build',
-    },
-  },
-});
+let aiClient: GoogleGenAI | null = null;
+function getAiClient(): GoogleGenAI {
+  if (!aiClient) {
+    aiClient = new GoogleGenAI({
+      apiKey: process.env.GEMINI_API_KEY,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        },
+      },
+    });
+  }
+  return aiClient;
+}
 
 const MODEL_FALLBACK_LADDER = [
   'gemini-4-hydrogen',
@@ -46,11 +53,11 @@ const MODEL_FALLBACK_LADDER = [
   'gemini-3.7-flash',
 ] as const;
 
-function isRecoverableGeminiError(err: unknown): boolean {
+export function isRecoverableGeminiError(err: unknown): boolean {
   const msg = err instanceof Error ? err.message : String(err);
   const status = (err as { status?: number; code?: number })?.status ?? (err as { code?: number })?.code;
   if (status && [404, 429, 500, 503].includes(status)) return true;
-  return /503|429|404|500|UNAVAILABLE|RESOURCE_EXHAUSTED|NOT_FOUND|INTERNAL/i.test(msg);
+  return /535/.test(msg) ? false : /503|429|404|500|UNAVAILABLE|RESOURCE_EXHAUSTED|NOT_FOUND|INTERNAL/i.test(msg);
 }
 
 async function generateContentWithFallback(
@@ -60,6 +67,7 @@ async function generateContentWithFallback(
     throw new Error('GEMINI_API_KEY is not configured in server environment secrets.');
   }
 
+  const ai = getAiClient();
   let lastError: unknown = null;
   for (const model of MODEL_FALLBACK_LADDER) {
     try {
@@ -140,7 +148,7 @@ async function requireFirebaseAuth(req: Request, res: Response, next: NextFuncti
   }
 }
 
-function escapeHtml(raw: string): string {
+export function escapeHtml(raw: string): string {
   return raw
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -149,7 +157,7 @@ function escapeHtml(raw: string): string {
     .replace(/'/g, '&#39;');
 }
 
-function getSafeBody(req: Request): Record<string, unknown> {
+export function getSafeBody(req: Request): Record<string, unknown> {
   return req.body && typeof req.body === 'object' && !Array.isArray(req.body)
     ? (req.body as Record<string, unknown>)
     : {};
@@ -241,16 +249,60 @@ const DispatchEmailSchema = z.object({
   recipients: z.array(z.string().email().max(120)).min(1).max(10),
 });
 
+// --- SMTP Configuration & Auth Circuit Breaker ---
+interface SmtpSettings {
+  host: string;
+  port: number;
+  user: string;
+  pass: string;
+  from: string;
+  hasValidConfig: boolean;
+  fingerprint: string;
+}
+
+let smtpAuthFailureCache: { fingerprint: string; message: string } | null = null;
+
+export function getSmtpSettings(): SmtpSettings {
+  const host = (process.env.SMTP_HOST || '').trim();
+  const user = (process.env.SMTP_USER || '').trim();
+  const pass = (process.env.SMTP_PASS || '').trim();
+  const port = Number(process.env.SMTP_PORT || 587);
+  const from = (process.env.SMTP_FROM || '').trim() || 'KinCare Alerts <alerts@kincare.local>';
+  const hasValidConfig =
+    Boolean(host && user && pass) &&
+    !host.startsWith('MY_') &&
+    !user.startsWith('MY_') &&
+    !pass.startsWith('MY_');
+
+  const fingerprint = crypto
+    .createHash('sha256')
+    .update(`${host}|${port}|${user}|${pass}`)
+    .digest('hex')
+    .slice(0, 16);
+
+  return { host, port, user, pass, from, hasValidConfig, fingerprint };
+}
+
+export function isSmtpAuthError(err: unknown): boolean {
+  const obj = err as { code?: string; responseCode?: number; message?: string };
+  if (obj?.code === 'EAUTH' || obj?.responseCode === 535) return true;
+  const msg = err instanceof Error ? err.message : String(err);
+  return /535|Invalid login|Authentication failed|Bad username|Username and Password not accepted/i.test(msg);
+}
+
+export function resetSmtpAuthFailureCacheForTests(): void {
+  smtpAuthFailureCache = null;
+}
+
 // --- API Routes ---
 
 app.get('/api/health', (_req: Request, res: Response) => {
-  const h = (process.env.SMTP_HOST || '').trim();
-  const u = (process.env.SMTP_USER || '').trim();
-  const p = (process.env.SMTP_PASS || '').trim();
-  const smtpConfigured = Boolean(h && u && p) && !h.startsWith('MY_') && !u.startsWith('MY_') && !p.startsWith('MY_');
+  const smtp = getSmtpSettings();
+  const authBlocked =
+    smtpAuthFailureCache !== null && smtpAuthFailureCache.fingerprint === smtp.fingerprint;
   res.json({
     ok: true,
-    smtpConfigured,
+    smtpConfigured: smtp.hasValidConfig && !authBlocked,
     timestamp: new Date().toISOString(),
   });
 });
@@ -505,38 +557,41 @@ app.post('/api/reminders/dispatch', requireFirebaseAuth, async (req: Request, re
 
   const textBody = `KinCare · ${typeLabel}\nCare Profile: ${seniorName} (${careCode})\n\n${messageText}\n\nSent by KinCare Proactive Care Alerts.`;
 
-  const smtpHost = (process.env.SMTP_HOST || '').trim();
-  const smtpUser = (process.env.SMTP_USER || '').trim();
-  const smtpPass = (process.env.SMTP_PASS || '').trim();
-  const smtpPort = Number(process.env.SMTP_PORT || 587);
-  const smtpFrom = (process.env.SMTP_FROM || '').trim() || 'KinCare Alerts <alerts@kincare.local>';
+  const smtp = getSmtpSettings();
 
-  const hasValidSmtpConfig =
-    Boolean(smtpHost && smtpUser && smtpPass) &&
-    !smtpHost.startsWith('MY_') &&
-    !smtpUser.startsWith('MY_') &&
-    !smtpPass.startsWith('MY_');
+  if (smtp.hasValidConfig) {
+    if (smtpAuthFailureCache && smtpAuthFailureCache.fingerprint === smtp.fingerprint) {
+      res.json({
+        deliveryMode: 'outbox_queued',
+        status: 'logged',
+        messageId: `outbox_${Date.now()}`,
+        htmlPreview: htmlBody,
+        textPreview: textBody,
+        smtpWarning: smtpAuthFailureCache.message,
+      });
+      return;
+    }
 
-  if (hasValidSmtpConfig) {
     try {
       const transporter = nodemailer.createTransport({
-        host: smtpHost,
-        port: smtpPort,
-        secure: smtpPort === 465,
+        host: smtp.host,
+        port: smtp.port,
+        secure: smtp.port === 465,
         auth: {
-          user: smtpUser,
-          pass: smtpPass,
+          user: smtp.user,
+          pass: smtp.pass,
         },
       });
 
       const info = await transporter.sendMail({
-        from: smtpFrom,
+        from: smtp.from,
         to: recipients.join(', '),
         subject,
         text: textBody,
         html: htmlBody,
       });
 
+      smtpAuthFailureCache = null;
       res.json({
         deliveryMode: 'smtp_sent',
         status: 'sent',
@@ -547,14 +602,24 @@ app.post('/api/reminders/dispatch', requireFirebaseAuth, async (req: Request, re
       return;
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : 'SMTP delivery failed.';
-      console.warn('SMTP delivery fallback triggered:', errMsg);
+      const warningMsg = isSmtpAuthError(err)
+        ? 'SMTP login was rejected (535 Authentication failed). If using Gmail SMTP, verify SMTP_USER and use a 16-character Google App Password in SMTP_PASS. Reminder was safely saved to the Care Circle Outbox.'
+        : `Live SMTP delivery unavailable (${errMsg}). Reminder was safely saved to the Care Circle Outbox.`;
+
+      if (isSmtpAuthError(err)) {
+        smtpAuthFailureCache = {
+          fingerprint: smtp.fingerprint,
+          message: warningMsg,
+        };
+      }
+
       res.json({
         deliveryMode: 'outbox_queued',
         status: 'logged',
         messageId: `outbox_${Date.now()}`,
         htmlPreview: htmlBody,
         textPreview: textBody,
-        smtpWarning: `Live SMTP delivery failed (${errMsg}). Reminder was safely saved to the Care Circle Outbox instead.`,
+        smtpWarning: warningMsg,
       });
       return;
     }
@@ -592,4 +657,6 @@ async function startServer() {
   });
 }
 
-startServer();
+if (!process.env.VITEST) {
+  startServer();
+}

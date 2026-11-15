@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import {
   AlertTriangle,
@@ -11,7 +11,6 @@ import {
   Download,
   Edit3,
   KeyRound,
-  LayoutDashboard,
   Mail,
   Pill,
   Plus,
@@ -24,6 +23,10 @@ import {
   UserCheck,
   Users,
 } from 'lucide-react';
+import { DASHBOARD_NAV_ITEMS } from './dashboardNav';
+import type { DashboardTab } from './dashboardNav';
+export { DASHBOARD_NAV_ITEMS };
+export type { DashboardTab };
 import {
   generateAppointmentPrepBrief,
   generateDailyCareDigest,
@@ -54,8 +57,6 @@ import type {
   TimeSlot,
 } from '../types/kincare';
 import { AppointmentModal, MedicationModal, SendEmailReminderModal } from './Modals';
-
-export type DashboardTab = 'overview' | 'medications' | 'appointments' | 'emails' | 'circle';
 
 interface CaregiverDashboardProps {
   activeTab: DashboardTab;
@@ -132,6 +133,26 @@ export function CaregiverDashboard({
   const [emergencyPhoneDraft, setEmergencyPhoneDraft] = useState(profile.emergencyContactPhone);
   const [savingClinical, setSavingClinical] = useState(false);
   const [clinicalSavedMsg, setClinicalSavedMsg] = useState<string | null>(null);
+
+  // Sync draft inputs whenever user switches to a different CareProfile
+  useEffect(() => {
+    setAllergiesDraft(profile.allergies);
+    setConditionsDraft(profile.conditions);
+    setDoctorNameDraft(profile.doctorName);
+    setEmergencyNameDraft(profile.emergencyContactName);
+    setEmergencyPhoneDraft(profile.emergencyContactPhone);
+    setInsights(null);
+    setDailyDigest('');
+    setSweepNotice(null);
+    setClinicalSavedMsg(null);
+  }, [
+    profile.profileId,
+    profile.allergies,
+    profile.conditions,
+    profile.doctorName,
+    profile.emergencyContactName,
+    profile.emergencyContactPhone,
+  ]);
 
   // Derived Metrics
   const todayLogsMap = useMemo(() => {
@@ -709,6 +730,7 @@ export function CaregiverDashboard({
                 <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
+                  aria-label="Filter medications"
                   value={medSearch}
                   onChange={(e) => setMedSearch(e.target.value)}
                   placeholder="Filter medications..."
@@ -1118,7 +1140,11 @@ export function CaregiverDashboard({
           </div>
 
           {sweepNotice && (
-            <div className="p-4 rounded-xl bg-teal-50 border border-teal-200 text-sm text-teal-900">
+            <div
+              role="status"
+              aria-live="polite"
+              className="p-4 rounded-xl bg-teal-50 border border-teal-200 text-sm text-teal-900"
+            >
               {sweepNotice}
             </div>
           )}
@@ -1222,6 +1248,7 @@ export function CaregiverDashboard({
                   <div className="grid grid-cols-2 gap-3">
                     <input
                       type="password"
+                      aria-label="Current 6-digit passcode (optional)"
                       inputMode="numeric"
                       maxLength={6}
                       value={oldPasscode}
@@ -1231,6 +1258,7 @@ export function CaregiverDashboard({
                     />
                     <input
                       type="password"
+                      aria-label="New 6-digit passcode"
                       inputMode="numeric"
                       maxLength={6}
                       required
@@ -1283,8 +1311,11 @@ export function CaregiverDashboard({
               <form onSubmit={handleSaveClinicalProfile} className="space-y-3">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">Allergies</label>
+                    <label htmlFor="clinical-allergies" className="block text-xs font-medium text-slate-600 mb-1">
+                      Allergies
+                    </label>
                     <input
+                      id="clinical-allergies"
                       type="text"
                       value={allergiesDraft}
                       onChange={(e) => setAllergiesDraft(e.target.value)}
@@ -1292,8 +1323,11 @@ export function CaregiverDashboard({
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">Conditions</label>
+                    <label htmlFor="clinical-conditions" className="block text-xs font-medium text-slate-600 mb-1">
+                      Conditions
+                    </label>
                     <input
+                      id="clinical-conditions"
                       type="text"
                       value={conditionsDraft}
                       onChange={(e) => setConditionsDraft(e.target.value)}
@@ -1304,8 +1338,11 @@ export function CaregiverDashboard({
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">Primary Doctor</label>
+                    <label htmlFor="clinical-doctor" className="block text-xs font-medium text-slate-600 mb-1">
+                      Primary Doctor
+                    </label>
                     <input
+                      id="clinical-doctor"
                       type="text"
                       value={doctorNameDraft}
                       onChange={(e) => setDoctorNameDraft(e.target.value)}
@@ -1313,8 +1350,11 @@ export function CaregiverDashboard({
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">Emergency Contact</label>
+                    <label htmlFor="clinical-emergency-name" className="block text-xs font-medium text-slate-600 mb-1">
+                      Emergency Contact
+                    </label>
                     <input
+                      id="clinical-emergency-name"
                       type="text"
                       value={emergencyNameDraft}
                       onChange={(e) => setEmergencyNameDraft(e.target.value)}
@@ -1322,8 +1362,11 @@ export function CaregiverDashboard({
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">Emergency Phone</label>
+                    <label htmlFor="clinical-emergency-phone" className="block text-xs font-medium text-slate-600 mb-1">
+                      Emergency Phone
+                    </label>
                     <input
+                      id="clinical-emergency-phone"
                       type="text"
                       value={emergencyPhoneDraft}
                       onChange={(e) => setEmergencyPhoneDraft(e.target.value)}
@@ -1341,7 +1384,9 @@ export function CaregiverDashboard({
                     {savingClinical ? 'Saving...' : 'Save Clinical Info'}
                   </button>
                   {clinicalSavedMsg && (
-                    <span className="text-xs font-medium text-emerald-700">{clinicalSavedMsg}</span>
+                    <span role="status" aria-live="polite" className="text-xs font-medium text-emerald-700">
+                      {clinicalSavedMsg}
+                    </span>
                   )}
                 </div>
               </form>
@@ -1501,15 +1546,3 @@ export function CaregiverDashboard({
     </div>
   );
 }
-
-export const DASHBOARD_NAV_ITEMS: Array<{
-  id: DashboardTab;
-  label: string;
-  icon: typeof LayoutDashboard;
-}> = [
-  { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-  { id: 'medications', label: 'Medications & AI', icon: Pill },
-  { id: 'appointments', label: 'Appointments', icon: Calendar },
-  { id: 'emails', label: 'Email Alerts', icon: BellRing },
-  { id: 'circle', label: 'Care Circle', icon: UserCheck },
-];

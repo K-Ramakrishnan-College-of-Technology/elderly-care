@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
 import type { User } from 'firebase/auth';
 import {
@@ -9,12 +9,9 @@ import {
   RefreshCw,
   UserCheck,
 } from 'lucide-react';
-import { CaregiverDashboard, DASHBOARD_NAV_ITEMS } from './components/CaregiverDashboard';
-import type { DashboardTab } from './components/CaregiverDashboard';
+import { DASHBOARD_NAV_ITEMS } from './components/dashboardNav';
+import type { DashboardTab } from './components/dashboardNav';
 import { LandingView } from './components/LandingView';
-import { PasscodeUnlockModal } from './components/Modals';
-import { OnboardingModal } from './components/OnboardingModal';
-import { SeniorModeView } from './components/SeniorModeView';
 import { fetchServerHealth } from './lib/api';
 import {
   ensureUserRecord,
@@ -23,6 +20,19 @@ import {
 } from './lib/careService';
 import { auth, googleProvider } from './lib/firebase';
 import { runProactiveAlertSweep } from './lib/reminderEngine';
+
+const CaregiverDashboard = lazy(() =>
+  import('./components/CaregiverDashboard').then((m) => ({ default: m.CaregiverDashboard }))
+);
+const SeniorModeView = lazy(() =>
+  import('./components/SeniorModeView').then((m) => ({ default: m.SeniorModeView }))
+);
+const OnboardingModal = lazy(() =>
+  import('./components/OnboardingModal').then((m) => ({ default: m.OnboardingModal }))
+);
+const PasscodeUnlockModal = lazy(() =>
+  import('./components/Modals').then((m) => ({ default: m.PasscodeUnlockModal }))
+);
 import type {
   Appointment,
   CareMember,
@@ -141,26 +151,56 @@ export default function App() {
     return unsub;
   }, [user, activeProfileId]);
 
+  // Keep latest workspace state in a ref so the 60s alert sweep interval is stable and non-overlapping
+  const sweepStateRef = useRef({
+    user,
+    profile,
+    members,
+    medications,
+    doseLogs,
+    appointments,
+    emailLogs,
+  });
+  sweepStateRef.current = {
+    user,
+    profile,
+    members,
+    medications,
+    doseLogs,
+    appointments,
+    emailLogs,
+  };
+  const sweepInFlightRef = useRef(false);
+
   // Automatic proactive email alert evaluator (runs quietly every 60s when workspace is open)
   useEffect(() => {
-    if (!user || !profile || members.length === 0) return;
+    if (!user || !activeProfileId) return;
 
     const timer = window.setInterval(() => {
+      const current = sweepStateRef.current;
+      if (!current.user || !current.profile || current.members.length === 0 || sweepInFlightRef.current) {
+        return;
+      }
+      sweepInFlightRef.current = true;
       runProactiveAlertSweep({
-        profile,
-        members,
-        medications,
-        doseLogs,
-        appointments,
-        emailLogs,
-        actorUid: user.uid,
-      }).catch(() => {
-        // Silent background sweep retry on next tick; manual sweep reports explicit UI errors
-      });
+        profile: current.profile,
+        members: current.members,
+        medications: current.medications,
+        doseLogs: current.doseLogs,
+        appointments: current.appointments,
+        emailLogs: current.emailLogs,
+        actorUid: current.user.uid,
+      })
+        .catch(() => {
+          // Silent background sweep retry on next tick; manual sweep reports explicit UI errors
+        })
+        .finally(() => {
+          sweepInFlightRef.current = false;
+        });
     }, 60_000);
 
     return () => window.clearInterval(timer);
-  }, [user, profile, members, medications, doseLogs, appointments, emailLogs]);
+  }, [user, activeProfileId]);
 
   const currentMember = useMemo(
     () => members.find((m) => m.uid === user?.uid),
@@ -242,6 +282,12 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:px-4 focus:py-2 focus:bg-teal-700 focus:text-white focus:rounded-lg focus:text-sm focus:font-semibold"
+      >
+        Skip to main content
+      </a>
       {/* Persistent Accessible Error / Retry Banner */}
       {errorBanner && (
         <div
@@ -407,7 +453,7 @@ export default function App() {
           </header>
 
           {/* Content */}
-          <main className="flex-1 p-4 sm:p-6 max-w-6xl w-full mx-auto">
+          <main id="main-content" className="flex-1 p-4 sm:p-6 max-w-6xl w-full mx-auto">
             {!membershipsLoaded ? (
               <div className="py-20 text-center text-sm text-slate-500">
                 Loading care profiles...
@@ -429,66 +475,78 @@ export default function App() {
                   Create or Join Care Profile
                 </button>
               </div>
-            ) : viewMode === 'senior' ? (
-              <SeniorModeView
-                profile={profile}
-                currentUid={user.uid}
-                currentUserName={currentUserName}
-                isOwnerOrSenior={
-                  profile.ownerId === user.uid || currentMember.role === 'elderly'
-                }
-                members={members}
-                medications={medications}
-                doseLogs={doseLogs}
-                appointments={appointments}
-                checkIns={checkIns}
-                onRequestCaregiverUnlock={() => setUnlockModalOpen(true)}
-                onReportError={(message, retryFn) => setErrorBanner({ message, retryFn })}
-              />
             ) : (
-              <CaregiverDashboard
-                activeTab={activeTab}
-                onTabChange={setActiveTab}
-                profile={profile}
-                currentUid={user.uid}
-                currentUserName={currentUserName}
-                currentMember={currentMember}
-                members={members}
-                medications={medications}
-                doseLogs={doseLogs}
-                appointments={appointments}
-                checkIns={checkIns}
-                emailLogs={emailLogs}
-                smtpConfigured={smtpConfigured}
-                onReportError={(message, retryFn) => setErrorBanner({ message, retryFn })}
-              />
+              <Suspense
+                fallback={
+                  <div className="py-16 text-center text-sm text-slate-500">
+                    Loading care workspace...
+                  </div>
+                }
+              >
+                {viewMode === 'senior' ? (
+                  <SeniorModeView
+                    profile={profile}
+                    currentUid={user.uid}
+                    currentUserName={currentUserName}
+                    isOwnerOrSenior={
+                      profile.ownerId === user.uid || currentMember.role === 'elderly'
+                    }
+                    members={members}
+                    medications={medications}
+                    doseLogs={doseLogs}
+                    appointments={appointments}
+                    checkIns={checkIns}
+                    onRequestCaregiverUnlock={() => setUnlockModalOpen(true)}
+                    onReportError={(message, retryFn) => setErrorBanner({ message, retryFn })}
+                  />
+                ) : (
+                  <CaregiverDashboard
+                    activeTab={activeTab}
+                    onTabChange={setActiveTab}
+                    profile={profile}
+                    currentUid={user.uid}
+                    currentUserName={currentUserName}
+                    currentMember={currentMember}
+                    members={members}
+                    medications={medications}
+                    doseLogs={doseLogs}
+                    appointments={appointments}
+                    checkIns={checkIns}
+                    emailLogs={emailLogs}
+                    smtpConfigured={smtpConfigured}
+                    onReportError={(message, retryFn) => setErrorBanner({ message, retryFn })}
+                  />
+                )}
+              </Suspense>
             )}
           </main>
         </div>
       </div>
 
-      {(needsOnboarding || onboardingOpen) && (
-        <OnboardingModal
-          user={user}
-          canClose={!needsOnboarding}
-          onClose={() => setOnboardingOpen(false)}
-          onSuccess={(newId) => {
-            setActiveProfileId(newId);
-            setOnboardingOpen(false);
-          }}
-        />
-      )}
+      <Suspense fallback={null}>
+        {(needsOnboarding || onboardingOpen) && (
+          <OnboardingModal
+            user={user}
+            canClose={!needsOnboarding}
+            onClose={() => setOnboardingOpen(false)}
+            onSuccess={(newId) => {
+              setActiveProfileId(newId);
+              setOnboardingOpen(false);
+            }}
+          />
+        )}
 
-      {unlockModalOpen && profile && (
-        <PasscodeUnlockModal
-          profile={profile}
-          onClose={() => setUnlockModalOpen(false)}
-          onUnlocked={() => {
-            setUnlockModalOpen(false);
-            setViewMode('caregiver');
-          }}
-        />
-      )}
+        {unlockModalOpen && profile && (
+          <PasscodeUnlockModal
+            profile={profile}
+            onClose={() => setUnlockModalOpen(false)}
+            onUnlocked={() => {
+              setUnlockModalOpen(false);
+              setViewMode('caregiver');
+            }}
+          />
+        )}
+      </Suspense>
     </div>
   );
 }

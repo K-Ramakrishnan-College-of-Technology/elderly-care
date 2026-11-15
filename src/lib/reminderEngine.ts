@@ -1,5 +1,6 @@
 import { dispatchProactiveEmail } from './api';
-import { getTodayDateKey, recordEmailLog, updateAppointmentFields } from './careService';
+import { recordEmailLog, updateAppointmentFields } from './careService';
+import { getTodayDateKey } from './careUtils';
 import type {
   Appointment,
   CareMember,
@@ -36,7 +37,7 @@ export function evaluateDueAlerts(params: {
   now?: Date;
 }): DueAlertCandidate[] {
   const now = params.now ?? new Date();
-  const todayKey = getTodayDateKey();
+  const todayKey = getTodayDateKey(now);
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
   const sentKeys = new Set(params.emailLogs.map((e) => e.alertKey));
 

@@ -8,6 +8,9 @@ import {
   Sparkles,
   UserCheck,
 } from 'lucide-react';
+import heroCareCircleImg from '../assets/images/hero_care_circle_1794738807858.jpg';
+import avatarElenaImg from '../assets/images/avatar_senior_elena_1794738808258.jpg';
+import avatarCaretakerImg from '../assets/images/avatar_caretaker_marcus_1794738809842.jpg';
 
 interface LandingViewProps {
   onSignIn: () => Promise<void>;
@@ -114,7 +117,7 @@ export function LandingView({ onSignIn, signingIn, authError }: LandingViewProps
               <div className="h-full min-h-[340px] lg:min-h-[440px] rounded-2xl overflow-hidden border border-slate-200 bg-slate-100">
                 {!heroImgFailed ? (
                   <img
-                    src="/src/assets/images/hero_care_circle_1794738807858.jpg"
+                    src={heroCareCircleImg}
                     alt="An elderly woman and her daughter sitting at a sunlit table reviewing a weekly medication organizer and care notebook together"
                     referrerPolicy="no-referrer"
                     onError={() => setHeroImgFailed(true)}
@@ -221,7 +224,7 @@ export function LandingView({ onSignIn, signingIn, authError }: LandingViewProps
             <div className="lg:col-span-5 grid grid-cols-1 gap-4">
               <div className="p-5 rounded-xl border border-slate-200 bg-slate-50 flex items-center gap-4">
                 <img
-                  src="/src/assets/images/avatar_senior_elena_1794738808258.jpg"
+                  src={avatarElenaImg}
                   alt="Portrait of Elena Vance, elderly profile owner"
                   referrerPolicy="no-referrer"
                   className="w-16 h-16 rounded-full object-cover border border-slate-200 shrink-0"
@@ -236,7 +239,7 @@ export function LandingView({ onSignIn, signingIn, authError }: LandingViewProps
 
               <div className="p-5 rounded-xl border border-slate-200 bg-slate-50 flex items-center gap-4">
                 <img
-                  src="/src/assets/images/avatar_caretaker_marcus_1794738809842.jpg"
+                  src={avatarCaretakerImg}
                   alt="Portrait of Claire Vance, family caretaker"
                   referrerPolicy="no-referrer"
                   className="w-16 h-16 rounded-full object-cover border border-slate-200 shrink-0"
